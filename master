@@ -1,51 +1,16 @@
-Witajcie! Dziś poradnik – serwer LEMP na systemie CentOS 6 / RHEL 6 – dlaczego dla tak “starego” systemu ?
-Wbrew pozorom, z CentOSa korzysta bardzo wiele użytkowników, system ten pracuje jeszcze na Kernelu 2.6.32.x i jest wspierany (security).
-Popularnośc systemu można zawdzięczyć zapewne jogo “ojcu” czyli Red Hatowi, ale odpowiedź na pytanie pozostawie dla was.
-
-Przygotowana konfiguracja opiera się na:
-
-NGINX – jako główny serwer WWW, wszelkie konfiguracje v-hostów znajdują się w /etc/nginx/conf.d/ (przykładowy plik w katalogu)
-MariaDB w wersjach 5/10/10.1 – jako alternatywna baza danych (odpowiednik MySQL)
-PHP-FPM wersja 5.6 interpreter skryptów PHP wraz z Opcache oraz IonCube’m
-vSFTPd – jako serwer FTP
-PHPMyAdmin – jako graficzny interfejs do zarządzania bazami danych i użytkownikami bazy danych
-..oraz dodatki ode mnie..
- 
-
-Dostęp do PHPMyAdmina: http://IP:9977
-NGINX port : http://IP:80
-Pliki konfiguracyjne:
-
-vhost NGINX – /etc/nginx/conf.d/default.conf
-php.ini – /etc/php.ini
-konfiguracja NGINX – /etc/nginx/
-
-#####################################################################################################################################################
-
-1. Tworzenie katalogów oraz tworzenie nowych użytkowników:
 useradd -r nginx 
 useradd -r www
 mkdir -p /home/www/public_html
 mkdir -p /var/cache/nginx/client_temp
 chmod 755 /home/www/* -R
 chown -R www:www /home/www/*
-passwd www ### Zdefiniuj hasło do usera WWW - przyda się do FTP
-
-2. Wyłączenie zapory oraz SeLinux:
 service iptables stop
 sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
-
-3. Aktualizacja systemu i instalacja potrzbnych narzędzi:
 yum update
 yum upgrade -y
 yum install nano wget curl unzip  -y 
 rpm -Uvh https://mirror.webtatic.com/yum/el6/latest.rpm
-
-4. Instalacja PHP-FPM w wersji 5.6
-4.1
 yum install php56w-fpm php56w-gd php56w-xmlrpc php56w-xml php56w-mysql php56w-mcrypt php56w-curl php56w-mbstring php56w-pear php56w-soap php56w-imap  php56w-common php56w-devel php56w-pdo php56w-pear php56w-pecl-memcache php56w-pecl-imagick  php56w-pecl-geoip  php56w-pecl-apcu php56w-opcache php56w-xmlrpc php56w-gd -y
-
-4.2 Konfiguracja PHP
 rm -rf /etc/php.ini
 rm -rf /etc/php-fpm.d/www.conf
 wget http://pliki.linuxiarz.pl/12-2015/c7-apache/php.ini -O /etc/php.ini
@@ -54,49 +19,31 @@ mkdir -p /etc/php-modules
 wget http://pliki.linuxiarz.pl/08-2015/php5/opcache.so -O /etc/php-modules/opcache.so
 wget http://pliki.linuxiarz.pl/08-2015/php5/ioncube_loader_lin_5.6.so -O /etc/php-modules/ioncube_loader_lin_5.6.so
 service php-fpm start
-
-4.3 ImageMagick
 yum install -y ImageMagick ImageMagick-devel
-
-5. Rekonfiguracja zabezpieczeń: (ważny etap)
 restorecon -R -v /home/www/public_html/
 setsebool -P httpd_can_network_connect_db 1
-
-6. NGINX – serwer www 
-6.1 Wymagane pakiety
 rpm --import https://linux.web.cern.ch/linux/scientific6/docs/repository/cern/slc6X/i386/RPM-GPG-KEY-cern
 wget -O /etc/yum.repos.d/slc6-devtoolset.repo https://linux.web.cern.ch/linux/scientific6/docs/repository/cern/devtoolset/slc6-devtoolset.repo
 yum install devtoolset-2-gcc-c++ devtoolset-2-binutils pcre-devel zlib-devel openssl-devel lua-devel -y
 scl enable devtoolset-2 bash
 source /opt/rh/devtoolset-2/enable
 PS_NGX_EXTRA_FLAGS="--with-cc=/opt/rh/devtoolset-2/root/usr/bin/gcc"
-
-6.2 Pobieranie źródeł
 mkdir ~/custom-nginx
 cd ~/custom-nginx
 wget http://repo.linuxiarz.pl/NGINX-1.10.0-UNIX.tar.gz
 tar xvf NGINX-1.10.*
 cd nginx-*
-
-6.3 Konfiguracja
 ./configure.sh
-
-6.4 Kompilacja i instalacja
 make
 make install
-
-6.5 Gotowa konfiguracja
 cd /root
 rm -rf /etc/nginx/
 cd /root/ ; mkdir nginx
 cd nginx ; wget http://pliki.linuxiarz.pl/02-2016/c6-nginx.zip -O c6-nginx.zip
 unzip c6-nginx.zip ; cd /root
 mv nginx /etc/
-
-6.6 Skrypt startowy serwera nginx
 wget http://pliki.linuxiarz.pl/11-2015/nginx-init.d_centos -O /etc/init.d/nginx
 chmod +x /etc/init.d/nginx
-
 7. Baza MariaDB (wersje są za sobą zamienne)
 7.1.1 Wersja 5.x
 
@@ -109,12 +56,8 @@ wget http://pliki.linuxiarz.pl/02-2016/MariaDB-10.x -O /etc/yum.repos.d/MariaDB.
 wget http://pliki.linuxiarz.pl/02-2016/MariaDB-10.1.x -O /etc/yum.repos.d/MariaDB.repo
 7.2 Instalacja serwera MariaDB
 yum install -y MariaDB-devel MariaDB-client MariaDB-server
-
-7.3 Konfiguracja
 /etc/init.d/mysql start
 mysql_secure_installation
-
-8. Instalacja PHPMyAdmin
 cd /opt/; wget https://github.com/phpmyadmin/phpmyadmin/archive/STABLE.zip
 unzip STABLE*.zip
 mv phpmy* pma
